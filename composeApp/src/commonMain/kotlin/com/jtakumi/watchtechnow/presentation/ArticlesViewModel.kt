@@ -1,5 +1,6 @@
 package com.jtakumi.watchtechnow.presentation
 
+import com.jtakumi.watchtechnow.data.ApiException
 import com.jtakumi.watchtechnow.domain.Article
 import com.jtakumi.watchtechnow.domain.ArticleRepository
 import kotlinx.coroutines.CoroutineScope
@@ -64,7 +65,7 @@ class ArticlesViewModel(
                 }
             }.onFailure { error ->
                 mutableState.update {
-                    it.copy(isLoading = false, errorMessage = error.message ?: "記事を取得できませんでした")
+                    it.copy(isLoading = false, errorMessage = error.toUserMessage())
                 }
             }
         }
@@ -73,4 +74,10 @@ class ArticlesViewModel(
     fun close() {
         scope.cancel()
     }
+}
+
+private fun Throwable.toUserMessage(): String = when (this) {
+    is ApiException.RateLimited -> "アクセスが集中しています。しばらくしてから再試行してください"
+    is ApiException.Network -> "通信に失敗しました。接続を確認して再試行してください"
+    else -> message ?: "記事を取得できませんでした"
 }
