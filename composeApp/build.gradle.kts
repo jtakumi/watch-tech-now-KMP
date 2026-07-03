@@ -41,6 +41,8 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.koin.core)
             implementation(libs.navigation.compose)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor)
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
@@ -53,6 +55,9 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.ktor.client.mock)
+        }
+        androidInstrumentedTest.dependencies {
+            implementation("androidx.compose.ui:ui-test-junit4:1.9.4")
         }
     }
 }
