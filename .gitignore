@@ -1,0 +1,24 @@
+# Gradle
+.gradle/
+**/build/
+local.properties
+
+# IDEs
+.idea/
+*.iml
+.fleet/
+
+# Android
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Apple / Xcode
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcuserstate
+Pods/
+
+# macOS
+.DS_Store
