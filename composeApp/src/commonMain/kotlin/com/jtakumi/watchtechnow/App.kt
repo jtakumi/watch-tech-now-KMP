@@ -21,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -28,6 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -63,44 +67,80 @@ fun App() {
 @OptIn(ExperimentalMaterial3Api::class)
 internal fun ArticlesScreen(viewModel: ArticlesViewModel = koinInject()) {
     val state by viewModel.state.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
     LaunchedEffect(viewModel) {
         viewModel.loadInitial()
     }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Watch Tech Now") }) }) { padding ->
-        when {
-            state.isLoading && state.articles.isEmpty() -> Column(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                CircularProgressIndicator()
-            }
-
-            state.errorMessage != null && state.articles.isEmpty() -> Column(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(state.errorMessage.orEmpty())
-                Button(onClick = viewModel::retry) { Text("再試行") }
-            }
-
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).testTag("article-list"),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(state.articles, key = { "${it.source}:${it.id}" }) { article ->
-                    ArticleCard(article)
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.weight(1f).testTag("search-input"),
+                    label = { Text("キーワード") },
+                    singleLine = true,
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { viewModel.loadInitial(searchQuery) },
+                    enabled = !state.isLoading,
+                    modifier = Modifier.testTag("search-button"),
+                ) {
+                    Text("検索")
                 }
-                if (state.canLoadMore) {
-                    item {
-                        Button(
-                            enabled = !state.isLoading,
-                            onClick = viewModel::loadMore,
-                        ) {
-                            Text(if (state.isLoading) "読み込み中…" else "さらに読み込む")
+            }
+            when {
+                state.isLoading && state.articles.isEmpty() -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+
+                state.errorMessage != null && state.articles.isEmpty() -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(state.errorMessage.orEmpty())
+                    Button(onClick = viewModel::retry) { Text("再試行") }
+                }
+
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize().testTag("article-list"),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(state.articles, key = { "${it.source}:${it.id}" }) { article ->
+                        ArticleCard(article)
+                    }
+                    if (state.canLoadMore) {
+                        item(key = "pagination-footer") {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                when {
+                                    state.isLoading -> CircularProgressIndicator(
+                                        modifier = Modifier.size(32.dp).testTag("loading-more"),
+                                    )
+                                    state.errorMessage != null -> Button(
+                                        onClick = viewModel::retry,
+                                        modifier = Modifier.testTag("retry-load-more"),
+                                    ) {
+                                        Text("読み込みに失敗しました。再試行")
+                                    }
+                                    else -> LaunchedEffect(state.articles.size, state.query) {
+                                        viewModel.loadMore()
+                                    }
+                                }
+                            }
                         }
                     }
                 }

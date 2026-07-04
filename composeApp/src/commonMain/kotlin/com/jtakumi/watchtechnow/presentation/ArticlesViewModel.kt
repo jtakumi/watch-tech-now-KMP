@@ -3,6 +3,8 @@ package com.jtakumi.watchtechnow.presentation
 import com.jtakumi.watchtechnow.data.ApiException
 import com.jtakumi.watchtechnow.domain.Article
 import com.jtakumi.watchtechnow.domain.ArticleRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -24,16 +26,25 @@ data class ArticlesUiState(
 
 class ArticlesViewModel(
     private val repository: ArticleRepository,
+    dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutableState = MutableStateFlow(ArticlesUiState())
     val state: StateFlow<ArticlesUiState> = mutableState.asStateFlow()
     private var nextCursor: String? = null
     private var loadJob: Job? = null
 
     fun loadInitial(query: String = mutableState.value.query) {
+        loadJob?.cancel()
         nextCursor = null
-        mutableState.update { it.copy(articles = emptyList(), query = query, canLoadMore = true) }
+        mutableState.update {
+            it.copy(
+                articles = emptyList(),
+                query = query.trim(),
+                canLoadMore = true,
+                errorMessage = null,
+            )
+        }
         load(append = false)
     }
 
@@ -49,21 +60,24 @@ class ArticlesViewModel(
         if (loadJob?.isActive == true) return
         loadJob = scope.launch {
             mutableState.update { it.copy(isLoading = true, errorMessage = null) }
-            runCatching {
+            try {
                 repository.getArticles(
                     cursor = if (append) nextCursor else null,
                     query = mutableState.value.query.takeIf(String::isNotBlank),
-                )
-            }.onSuccess { page ->
+                ).let { page ->
                 nextCursor = page.nextCursor
                 mutableState.update {
+                    val articles = if (append) it.articles + page.articles else page.articles
                     it.copy(
-                        articles = if (append) it.articles + page.articles else page.articles,
+                        articles = articles.distinctBy { article -> article.source to article.id },
                         isLoading = false,
                         canLoadMore = page.nextCursor != null,
                     )
                 }
-            }.onFailure { error ->
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
                 mutableState.update {
                     it.copy(isLoading = false, errorMessage = error.toUserMessage())
                 }
