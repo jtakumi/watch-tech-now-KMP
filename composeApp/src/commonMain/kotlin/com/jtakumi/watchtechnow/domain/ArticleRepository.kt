@@ -10,4 +10,10 @@ interface ArticleRepository {
         cursor: String? = null,
         query: String? = null,
     ): ArticlePage
+
+    suspend fun getArticles(
+        source: ArticleSource,
+        cursor: String? = null,
+        query: String? = null,
+    ): ArticlePage = getArticles(cursor, query)
 }

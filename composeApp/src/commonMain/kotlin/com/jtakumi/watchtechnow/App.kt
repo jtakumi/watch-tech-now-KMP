@@ -20,6 +20,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -44,6 +46,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jtakumi.watchtechnow.presentation.ArticlesViewModel
 import com.jtakumi.watchtechnow.domain.Article
+import com.jtakumi.watchtechnow.domain.ArticleSource
 import coil3.compose.AsyncImage
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -93,6 +96,14 @@ internal fun ArticlesScreen(viewModel: ArticlesViewModel = koinInject()) {
                 ) {
                     Text("検索")
                 }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SourceFilterChip("全て", state.source == null, { viewModel.loadInitial(searchQuery, null) }, "source-all")
+                SourceFilterChip("Zenn", state.source == ArticleSource.ZENN, { viewModel.loadInitial(searchQuery, ArticleSource.ZENN) }, "source-zenn")
+                SourceFilterChip("Qiita", state.source == ArticleSource.QIITA, { viewModel.loadInitial(searchQuery, ArticleSource.QIITA) }, "source-qiita")
             }
             when {
                 state.isLoading && state.articles.isEmpty() -> Column(
@@ -182,4 +193,20 @@ private fun ArticleCard(article: Article) {
             }
         }
     }
+}
+
+@Composable
+private fun SourceFilterChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    testTag: String,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        modifier = Modifier.testTag(testTag),
+        colors = FilterChipDefaults.filterChipColors(),
+    )
 }
