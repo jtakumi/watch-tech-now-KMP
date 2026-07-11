@@ -3,6 +3,7 @@ package com.jtakumi.watchtechnow.presentation
 import com.jtakumi.watchtechnow.data.ApiException
 import com.jtakumi.watchtechnow.domain.Article
 import com.jtakumi.watchtechnow.domain.ArticleRepository
+import com.jtakumi.watchtechnow.domain.ArticleSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +23,7 @@ data class ArticlesUiState(
     val isLoading: Boolean = false,
     val canLoadMore: Boolean = true,
     val errorMessage: String? = null,
+    val source: ArticleSource? = null,
 )
 
 class ArticlesViewModel(
@@ -34,13 +36,17 @@ class ArticlesViewModel(
     private var nextCursor: String? = null
     private var loadJob: Job? = null
 
-    fun loadInitial(query: String = mutableState.value.query) {
+    fun loadInitial(
+        query: String = mutableState.value.query,
+        source: ArticleSource? = mutableState.value.source,
+    ) {
         loadJob?.cancel()
         nextCursor = null
         mutableState.update {
             it.copy(
                 articles = emptyList(),
                 query = query.trim(),
+                source = source,
                 canLoadMore = true,
                 errorMessage = null,
             )
@@ -61,10 +67,17 @@ class ArticlesViewModel(
         loadJob = scope.launch {
             mutableState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                repository.getArticles(
+                val page = mutableState.value.source?.let { source ->
+                    repository.getArticles(
+                        source = source,
+                        cursor = if (append) nextCursor else null,
+                        query = mutableState.value.query.takeIf(String::isNotBlank),
+                    )
+                } ?: repository.getArticles(
                     cursor = if (append) nextCursor else null,
                     query = mutableState.value.query.takeIf(String::isNotBlank),
-                ).let { page ->
+                )
+                page.let { page ->
                 nextCursor = page.nextCursor
                 mutableState.update {
                     val articles = if (append) it.articles + page.articles else page.articles

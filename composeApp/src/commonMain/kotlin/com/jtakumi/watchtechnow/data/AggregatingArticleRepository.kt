@@ -2,6 +2,7 @@ package com.jtakumi.watchtechnow.data
 
 import com.jtakumi.watchtechnow.domain.ArticlePage
 import com.jtakumi.watchtechnow.domain.ArticleRepository
+import com.jtakumi.watchtechnow.domain.ArticleSource
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
 
@@ -11,6 +12,15 @@ class AggregatingArticleRepository(
     private val qiita: ArticleRepository,
     private val zenn: ArticleRepository,
 ) : ArticleRepository {
+    override suspend fun getArticles(
+        source: ArticleSource,
+        cursor: String?,
+        query: String?,
+    ): ArticlePage = when (source) {
+        ArticleSource.QIITA -> qiita.getArticles(cursor, query)
+        ArticleSource.ZENN -> zenn.getArticles(cursor, query)
+    }
+
     override suspend fun getArticles(cursor: String?, query: String?): ArticlePage = supervisorScope {
         val (qiitaCursor, zennCursor) = decodeCursor(cursor)
         val qiitaActive = cursor == null || qiitaCursor != null
